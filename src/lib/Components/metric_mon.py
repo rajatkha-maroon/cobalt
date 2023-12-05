@@ -43,7 +43,7 @@ CP.read(Cobalt.CONFIG_FILES)
 #if CP.has_section('iomon') and CP.get("iomon", "no_of_machines"):
 #    no_of_machine = CP.get("evsim", "no_of_machines")
 
-MAX_SYSTEM_IO_CAPACITY = 40960.0
+MAX_SYSTEM_IO_CAPACITY = 49152.0
     
 def sec_to_date(sec, dateformat="%m/%d/%Y %H:%M:%S"):
     tmp = datetime.fromtimestamp(sec)

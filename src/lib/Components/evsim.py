@@ -39,6 +39,7 @@ logging.basicConfig()
 logger = logging.getLogger('evsim')
 
 no_of_machine = 2
+MIRA = 0
 INTREPID = 0
 EUREKA = 1
 BOTH = 2
@@ -337,7 +338,7 @@ class EventSimulator(Component):
 #                                            self.get_current_event_job(),
 #                                            )
 
-        if machine == INTREPID:
+        if machine == INTREPID or machine == MIRA:
             self.bgsched.schedule_jobs()
         if machine == EUREKA:
             self.csched.schedule_jobs()

@@ -32,7 +32,7 @@ from Cobalt.Server import XMLRPCServer, find_intended_location
 
 REMOTE_QUEUE_MANAGER = "cluster-queue-manager"
 MACHINE_ID = 0
-MACHINE_NAME = "Intrepid"
+MACHINE_NAME = "Mira"
 MAXINT = 2021072587
 MIDPLANE_SIZE = 512
 DEFAULT_VICINITY = 60
@@ -40,7 +40,7 @@ DEFAULT_COSCHEDULE_SCHEME = 0
 
 logging.basicConfig()
 logger = logging.getLogger('Qsim')
-TOTAL_NODES = 40960
+TOTAL_NODES = 49152
 
 OPT_RULE = "A1"  # A0, A1, A2, A3, A4, NORMAL, EVEN
 RECOVERYOPT = 2 # by default, the failed job is sent back to the rear of the queue
@@ -72,8 +72,58 @@ def get_histm_config(option, default):
 prediction_scheme = get_histm_config("prediction_scheme", "paired")  # ["project", "user", "combine        # *AdjEst*
 
 def parseline(line):
-    '''parse a line in work load file, return a temp
-    dictionary with parsed fields in the line'''
+    def len2 (_input):
+        _input = str(_input)
+        if len(_input) == 1:
+            return "0" + _input
+        else:
+            return _input
+
+    temp = {}
+    splits = line.split(';')
+
+    temp['jobid'] = splits[1]
+    temp['EventType'] = 'Q'
+
+    temp['queue'] = splits[11]
+
+    temp['qtime'] = splits[3]
+    fmtdate = temp['qtime']
+    submittime_sec = date_to_sec(fmtdate, "%Y-%m-%d %H:%M:%S")
+    submittime_date = sec_to_date(submittime_sec)
+    temp['submittime'] = submittime_date
+
+    temp['start'] = splits[5]
+    start_date = temp['start']
+    start_sec = date_to_sec(start_date, "%Y-%m-%d %H:%M:%S")
+    temp['start'] = start_sec
+
+    temp['end'] = splits[7]
+    end_date = temp['end']
+    end_sec = date_to_sec(end_date, "%Y-%m-%d %H:%M:%S")
+    temp['end'] = end_sec
+
+    temp['Resource_List.walltime'] = splits[12]
+    walltime_sec = temp['Resource_List.walltime']
+    wall_time = int(float(walltime_sec) / 60)
+    walltime_minutes = len2(wall_time % 60)
+    walltime_hours = len2(wall_time // 60)
+    fmt_walltime = "%s:%s:00" % (walltime_hours, walltime_minutes)
+    temp['Resource_List.walltime'] = fmt_walltime
+
+    temp['runtime'] = splits[13]
+
+    temp['Resource_List.nodect'] = splits[15]
+
+    temp['user'] = splits[9]
+    temp['account'] = splits[10]
+
+    return temp
+
+'''
+def parseline(line):
+    parse a line in work load file, return a temp
+    dictionary with parsed fields in the line
     temp = {}
     firstparse = line.split(';')
     temp['EventType'] = firstparse[1]
@@ -88,6 +138,7 @@ def parseline(line):
             if not temp.has_key(tup[0]):
                 temp[tup[0]] = tup[2]
     return temp
+'''
 
 def parseline_alt(line):
     '''parse a line from alternative format'''
@@ -136,6 +187,7 @@ def parse_work_load(filename):
     for line in wlf:
         line = line.strip('\n')
         line = line.strip('\r')
+
         if line[0].isdigit():
             temp = parseline(line)
         else:

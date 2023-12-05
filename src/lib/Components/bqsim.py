@@ -36,7 +36,7 @@ REMOTE_QUEUE_MANAGER = "cluster-queue-manager"
 WALLTIME_AWARE_CONS = False
 
 MACHINE_ID = 0
-MACHINE_NAME = "Intrepid"
+MACHINE_NAME = "Mira"
 DEFAULT_MAX_HOLDING_SYS_UTIL = 0.6
 SELF_UNHOLD_INTERVAL = 0
 AT_LEAST_HOLD = 600
@@ -92,11 +92,15 @@ class BGQsim(Simulator):
                     self.part_size_list.append(int(part.size))
         self.part_size_list.sort()
 
+        print "Partition sizes list:"
+        print self.part_size_list
+
         self.cached_partitions = self.partitions
         self._build_locations_cache()
 
 ###-------Job related
         self.workload_file =  kwargs.get("bgjob")
+        print "Workload file:", self.workload_file
         self.output_log = MACHINE_NAME + "-" + kwargs.get("outputlog", "")
 
         self.event_manager = ComponentProxy("event-manager")
@@ -207,6 +211,8 @@ class BGQsim(Simulator):
 
 ####----log and other
         #initialize PBS-style logger
+        print("[bqsim] Output file:", self.output_log)
+
         self.pbslog = PBSlogger(self.output_log)
 
         #initialize debug logger
@@ -488,7 +494,7 @@ class BGQsim(Simulator):
                 continue
 
             if tmp.get('Resource_List.nodect'):
-                spec['nodes'] = tmp.get('Resource_List.nodect')
+                spec['nodes'] = float(tmp.get('Resource_List.nodect'))
                 if int(spec['nodes']) == TOTAL_NODES:
                     continue
             else:  #invalid job entry, discard
@@ -2116,14 +2122,14 @@ class BGQsim(Simulator):
                 self.rack_matrix[row][col][M] = 2
 
     def reset_rack_matrix(self):
-        self.rack_matrix = [
+        '''self.rack_matrix = [
                 [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
                 [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
                 [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
                 [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
                 [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-            ]
-        #self.rack_matrix = [[[0,0] for i in range(8)] for j in range(5)]
+            ]'''
+        self.rack_matrix = [[[0,0] for i in range(8)] for j in range(6)]
 
     def print_screen(self, cur_event=""):
         '''print screen, show number of waiting jobs, running jobs, busy_nodes%'''

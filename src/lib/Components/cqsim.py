@@ -281,7 +281,7 @@ class ClusterQsim(ClusterBaseSystem):
                 
             if tmp.get('Resource_List.nodect'):
                 spec['nodes'] = tmp.get('Resource_List.nodect')
-                if int(spec['nodes']) == 40960:
+                if int(spec['nodes']) == 49152:
                     continue                    
             else:  #invalid job entry, discard
                 continue

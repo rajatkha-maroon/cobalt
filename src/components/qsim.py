@@ -90,6 +90,8 @@ def profile_main(opts):
 def integrated_main(options):
     TimingServiceLocator()
 
+    print "Output file used:", opts.outputlog
+
     if opts.predict:
         histm = HistoryManager(**options)
 

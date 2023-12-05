@@ -10,7 +10,7 @@ from datetime import datetime
 __helpmsg__ = "Usage: qsim <PBS-log-file-path>"
 
 begin_time = 0
-TOTAL_NODES = 40960
+TOTAL_NODES = 49152
 
 def parseline(line):
     '''parse a line in work load file, return a temp
