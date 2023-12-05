@@ -345,6 +345,7 @@ class BGQsim(Simulator):
             else:
                 print "invalid event type, type=", eventtype
                 return
+        message = message + " Resource_List.ncpus=%s" % (spec['nodes'] * 16)
         self.pbslog.LogMessage(message)
 
 

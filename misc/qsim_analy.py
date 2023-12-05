@@ -141,7 +141,7 @@ if __name__ == '__main__':
         slowdown =  round(max(response_time, 10) / max(runtime, 10.0), 2)
         slowdowns.append(slowdown)
             
-        node_time_st += int(spec['Resource_List.ncpus']) * runtime
+        node_time_st += int(float(spec['Resource_List.ncpus'])) * runtime
         
         if response_time > max_resp_time:
             max_resp_time = response_time
