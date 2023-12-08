@@ -1,0 +1,27 @@
+log/qsim-Mira-80000_82000_old.log
+the time stamp of first job submitted:  07/16/2015 12:05:02
+the time stamp of last job end:  12/24/2015 05:28:29
+total Queued jobs:  1998
+total Completed jobs:  1998
+total started job*time 1998
+total failures: 0
+average waiting time(sec):  40156.2392392
+average response time(sec):  48427.541041
+average running time(sec):  8271.3018018
+average bounded slowdown: 38.7841791792
+utilization: 1.33095584243
+total waiting time(sec):  80232166.0
+total response time(sec):  96758227.0
+total running time(sec):  16526061.0
+total bounded slowdown: 77490.79
+max waiting time(sec):  304320.0
+max response time(sec):  307314.0
+max running time(sec):  86468.0
+valid node-hour(node*hour) 252412616.147
+waste node-hour(node*hour) 0
+total node-hour(node*hour) 252412616.147
+job not scheduled:  0
+job started but not ended:  0
+
+capacity loss rate= 0.00775718131246
+average waiting= 669.270653987

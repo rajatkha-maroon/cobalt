@@ -205,6 +205,11 @@ if __name__ == '__main__':
     print "average bounded slowdown:", ave_slowdown
     print "utilization:", utilization
     
+    print "total waiting time(sec): ", total_waiting_time
+    print "total response time(sec): ", total_response_time
+    print "total running time(sec): ", total_runtime    
+    print "total bounded slowdown:", total_slowdown
+    
     print "max waiting time(sec): ", waiting_times[len(waiting_times)-1]
     print "max response time(sec): ", max_resp_time
     print "max running time(sec): ", max_run_time

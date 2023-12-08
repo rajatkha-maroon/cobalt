@@ -1,0 +1,27 @@
+log/qsim-Mira-50_66.7_old.log
+the time stamp of first job submitted:  02/08/2015 05:29:51
+the time stamp of last job end:  09/09/2015 12:28:36
+total Queued jobs:  5
+total Completed jobs:  5
+total started job*time 5
+total failures: 0
+average waiting time(sec):  0.0
+average response time(sec):  14556.4
+average running time(sec):  14556.4
+average bounded slowdown: 1.0
+utilization: 0.032895687724
+total waiting time(sec):  0.0
+total response time(sec):  72782.0
+total running time(sec):  72782.0
+total bounded slowdown: 5.0
+max waiting time(sec):  0.0
+max response time(sec):  23279.0
+max running time(sec):  23279.0
+valid node-hour(node*hour) 8275203.41333
+waste node-hour(node*hour) 0
+total node-hour(node*hour) 8275203.41333
+job not scheduled:  0
+job started but not ended:  0
+
+capacity loss rate= 0.0
+average waiting= 0.0
