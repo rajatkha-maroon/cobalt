@@ -1362,6 +1362,7 @@ class BGBaseSystem (Component):
                Sets resource resrvations on blocks selected for job start.
 
         '''
+        print "[bgqbasesystem]: find_job_location called"
 
         best_block_dict = {}
 

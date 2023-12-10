@@ -118,6 +118,9 @@ def parseline(line):
     temp['user'] = splits[9]
     temp['account'] = splits[10]
 
+    temp['sampled_grp'] = splits[57]
+    print "[qsim_base]: sampled_grp is:", temp['sampled_grp']
+
     return temp
 
 '''

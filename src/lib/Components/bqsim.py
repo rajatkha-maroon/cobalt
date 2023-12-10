@@ -101,6 +101,7 @@ class BGQsim(Simulator):
 ###-------Job related
         self.workload_file =  kwargs.get("bgjob")
         print "Workload file:", self.workload_file
+
         self.output_log = MACHINE_NAME + "-" + kwargs.get("outputlog", "")
 
         self.event_manager = ComponentProxy("event-manager")
@@ -519,10 +520,15 @@ class BGQsim(Simulator):
             spec['location'] =tmp.get('exec_host', '')  #used for reservation jobs only
             spec['start_time'] = tmp.get('start', 0)  #used for reservation jobs only
 
+            spec['sampled_grp'] = tmp.get('sampled_grp')
+            print "[bqsim] init_queues sampledgrp:", spec['sampled_grp']
+
             #add the job spec to the spec list
             specs.append(spec)
 
         specs.sort(subtimecmp)
+
+        self.raw_jobs = raw_jobs
 
         #adjust workload density and simulation start time
         if self.fraction != 1 or self.anchor !=0 :
@@ -674,6 +680,12 @@ class BGQsim(Simulator):
 
                 #log the job end event
                 jobspec = completed_job.to_rx()
+
+		# maybe not needed? anyways, won't harm
+		completed_job_updates = {}
+                completed_job_updates.update({'has_resources':0})
+		jobspec.update(completed_job_updates)
+
                 #print "end jobspec=", jobspec
                 if jobspec['end_time']:
                     end = float(jobspec['end_time'])
@@ -688,7 +700,7 @@ class BGQsim(Simulator):
                 self.num_end += 1
 
         if not self.cluster_job_trace and not self.batch:
-            os.system('clear')
+            #os.system('clear')
             self.print_screen(cur_event)
 
         return 0
@@ -710,96 +722,147 @@ class BGQsim(Simulator):
         '''run a queued job, by updating the job state, start_time and
         end_time, invoked by bgsched'''
         #print "run job ", specs, " on nodes", nodelist
+        print "[bqsim]: run_jobs called"
+        for key in self.raw_jobs:
+		print "[bqsim] jobid:", self.raw_jobs[key].get('jobid')
+		print "[bqsim] sgrp:", self.raw_jobs[key].get('sampled_grp')
+
         if specs == None:
             return 0
 
-        for spec in specs:
+	# Original runtime of the now-to-be-run job
+	orig_runtime = 0.0
+	new_runtime = 0.0
+	for spec in specs:
+		temp_jobid = spec.get('jobid')
+		print "[bqsim]: now to be run job:", temp_jobid
 
-            action = "start"
-            dbgmsg = ""
+		temp_grp = -1
+		for key in self.raw_jobs:
+			if int(self.raw_jobs[key].get('jobid')) == temp_jobid:
+				temp_grp = int(self.raw_jobs[key].get('sampled_grp'))
+				orig_runtime = float(self.raw_jobs[key].get('runtime'))
+		print "[bqsim]: tempgrp:", temp_grp
+		temp_cnt = 1
+		for key in self.raw_jobs:
+			_temp_grp = int(self.raw_jobs[key].get('sampled_grp'))
+			if int(self.raw_jobs[key].get('jobid')) != temp_jobid and temp_grp == _temp_grp:
+				# Check if the job is still in the queue
+				_temp_jobid = self.get_live_job_by_id(self.raw_jobs[key].get('jobid'))
+				print "[bqsim]: getjobid returned:", _temp_jobid
+				if _temp_jobid != None:
+					temp_cnt += 1
+		print "[bqsim]: totalcnt:", temp_cnt
 
-            if self.coscheduling:
-                local_job_id = spec.get('jobid') #int
-                #check whether there is a mate job
+		if temp_cnt != 1:
+			for key in self.raw_jobs:
+				_temp_grp = int(self.raw_jobs[key].get('sampled_grp'))
+				if int(self.raw_jobs[key].get('jobid')) != temp_jobid and temp_grp == _temp_grp:
+					_temp_jobid = self.get_live_job_by_id(self.raw_jobs[key].get('jobid'))
+					temp_jobspec = _temp_jobid.to_rx()
 
-                mate_job_id = self.mate_job_dict.get(local_job_id, 0)
+					newattr = {'changed_runtime': float(self.raw_jobs[key].get('runtime')) / float(temp_cnt)}
+					newattr = self.run_job_updates(temp_jobspec, newattr)
+					_temp_jobid.update(newattr)
 
-                #if mate job exists, get the status of the mate job
-                if mate_job_id > 0:
-                    remote_status = self.get_mate_jobs_status_local(mate_job_id).get('status', "unknown!")
-                    dbgmsg += "local=%s;mate=%s;mate_status=%s" % (local_job_id, mate_job_id, remote_status)
+			this_jobid = self.get_live_job_by_id(temp_jobid)
+			this_jobspec = this_jobid.to_rx()
+			print "[bqsim]: remaintime:", this_jobspec['remain_time']
+			#this_jobspec['remain_time'] = orig_runtime / float(temp_cnt)
 
-                    if remote_status in ["queuing", "unsubmitted"]:
-                        if self.cosched_scheme == "hold": # hold resource if mate cannot run, favoring job
-                            action = "start_both_or_hold"
-                        if self.cosched_scheme == "yield": # give up if mate cannot run, favoring sys utilization
-                            action = "start_both_or_yield"
-                    if remote_status == "holding":
-                        action = "start_both"
+			print "[bqsim]: changing runtime jobid", temp_jobid
+			this_jobspec.update({'remain_time': float(this_jobspec['remain_time']) / float(temp_cnt)})
+			this_jobspec['remain_time'] = float(this_jobspec['remain_time']) / float(temp_cnt)
+			new_runtime = this_jobspec['remain_time']
 
-                #to be inserted co-scheduling handling code
-                else:
-                    pass
+		action = "start"
+		dbgmsg = ""
 
-            if action == "start":
-                #print "BQSIM-normal start job %s on nodes %s" % (spec['jobid'], nodelist)
-                self.start_job([spec], {'location': nodelist})
-            elif action == "start_both_or_hold":
-                #print "try to hold job %s on location %s" % (local_job_id, nodelist)
-                mate_job_can_run = False
+		if self.coscheduling:
+			local_job_id = spec.get('jobid') #int
+			#check whether there is a mate job
 
-                #try to invoke a scheduling iteration to see if remote yielding job can run now
-                try:
-                    mate_job_can_run = ComponentProxy(REMOTE_QUEUE_MANAGER).try_to_run_mate_job(mate_job_id)
-                except:
-                    self.logger.error("failed to connect to remote queue-manager component!")
+			mate_job_id = self.mate_job_dict.get(local_job_id, 0)
 
-                if mate_job_can_run:
-                    #now that mate has been started, start local job
-                    self.start_job([spec], {'location': nodelist})
-                    dbgmsg += " ###start both"
-                else:
-                    self.hold_job(spec, {'location': nodelist})
-            elif action == "start_both":
-                #print "start both mated jobs %s and %s" % (local_job_id, mate_job_id)
-                self.start_job([spec], {'location': nodelist})
-                ComponentProxy(REMOTE_QUEUE_MANAGER).run_holding_job([{'jobid':mate_job_id}])
-            elif action == "start_both_or_yield":
-                #print "BQSIM: In order to run local job %s, try to run mate job %s" % (local_job_id, mate_job_id)
-                mate_job_can_run = False
+			#if mate job exists, get the status of the mate job
+			if mate_job_id > 0:
+			    remote_status = self.get_mate_jobs_status_local(mate_job_id).get('status', "unknown!")
+			    dbgmsg += "local=%s;mate=%s;mate_status=%s" % (local_job_id, mate_job_id, remote_status)
 
-                #try to invoke a scheduling iteration to see if remote yielding job can run now
-                try:
-                    mate_job_can_run = ComponentProxy(REMOTE_QUEUE_MANAGER).try_to_run_mate_job(mate_job_id)
-                except:
-                    self.logger.error("failed to connect to remote queue-manager component!")
+			    if remote_status in ["queuing", "unsubmitted"]:
+			        if self.cosched_scheme == "hold": # hold resource if mate cannot run, favoring job
+			            action = "start_both_or_hold"
+			        if self.cosched_scheme == "yield": # give up if mate cannot run, favoring sys utilization
+			            action = "start_both_or_yield"
+			    if remote_status == "holding":
+			        action = "start_both"
 
-                if mate_job_can_run:
-                    #now that mate has been started, start local job
-                    self.start_job([spec], {'location': nodelist})
-                    dbgmsg += " ###start both"
-                else:
-                    #mate job cannot run, give up the turn. mark the job as yielding.
-                    job_id = spec.get('jobid')
-                    self.yielding_job_list.append(job_id)  #int
-                    #record the first time this job yields
-                    if not self.first_yield_hold_time_dict.has_key(job_id):
-                        self.first_yield_hold_time_dict[job_id] = self.get_current_time_sec()
-                        #self.dbglog.LogMessage("%s: job %s first yield" % (self.get_current_time_date(), job_id))
+			#to be inserted co-scheduling handling code
+			else:
+			    pass
 
-                    #self.release_allocated_nodes(nodelist)
-            if len(dbgmsg) > 0:
-                #self.dbglog.LogMessage(dbgmsg)
-                pass
+		if action == "start":
+			#print "BQSIM-normal start job %s on nodes %s" % (spec['jobid'], nodelist)
+			if temp_cnt == 1:
+				self.start_job([spec], {'location': nodelist})
+			else:
+				self.start_job([spec], {'location': nodelist, 'new_runtime': new_runtime})
+		elif action == "start_both_or_hold":
+		#print "try to hold job %s on location %s" % (local_job_id, nodelist)
+			mate_job_can_run = False
 
-            if self.walltime_aware_aggr:
-                self.run_matched_job(spec['jobid'], nodelist[0])
+			#try to invoke a scheduling iteration to see if remote yielding job can run now
+			try:
+			    mate_job_can_run = ComponentProxy(REMOTE_QUEUE_MANAGER).try_to_run_mate_job(mate_job_id)
+			except:
+			    self.logger.error("failed to connect to remote queue-manager component!")
 
-        #set tag false, enable scheduling another job at the same time
-        self.event_manager.set_go_next(False)
-        #self.print_screen()
+			if mate_job_can_run:
+			    #now that mate has been started, start local job
+			    self.start_job([spec], {'location': nodelist})
+			    dbgmsg += " ###start both"
+			else:
+			    self.hold_job(spec, {'location': nodelist})
+		elif action == "start_both":
+		#print "start both mated jobs %s and %s" % (local_job_id, mate_job_id)
+			self.start_job([spec], {'location': nodelist})
+			ComponentProxy(REMOTE_QUEUE_MANAGER).run_holding_job([{'jobid':mate_job_id}])
+		elif action == "start_both_or_yield":
+			#print "BQSIM: In order to run local job %s, try to run mate job %s" % (local_job_id, mate_job_id)
+			mate_job_can_run = False
 
-        return len(specs)
+			#try to invoke a scheduling iteration to see if remote yielding job can run now
+			try:
+			    mate_job_can_run = ComponentProxy(REMOTE_QUEUE_MANAGER).try_to_run_mate_job(mate_job_id)
+			except:
+			    self.logger.error("failed to connect to remote queue-manager component!")
+
+			if mate_job_can_run:
+			    #now that mate has been started, start local job
+			    self.start_job([spec], {'location': nodelist})
+			    dbgmsg += " ###start both"
+			else:
+			    #mate job cannot run, give up the turn. mark the job as yielding.
+			    job_id = spec.get('jobid')
+			    self.yielding_job_list.append(job_id)  #int
+			    #record the first time this job yields
+			    if not self.first_yield_hold_time_dict.has_key(job_id):
+			        self.first_yield_hold_time_dict[job_id] = self.get_current_time_sec()
+			        #self.dbglog.LogMessage("%s: job %s first yield" % (self.get_current_time_date(), job_id))
+
+			    #self.release_allocated_nodes(nodelist)
+		if len(dbgmsg) > 0:
+		#self.dbglog.LogMessage(dbgmsg)
+			pass
+
+		if self.walltime_aware_aggr:
+			self.run_matched_job(spec['jobid'], nodelist[0])
+
+	#set tag false, enable scheduling another job at the same time
+	self.event_manager.set_go_next(False)
+	#self.print_screen()
+
+	return len(specs)
     run_jobs = exposed(run_jobs)
 
     def start_job(self, specs, updates):
@@ -838,6 +901,29 @@ class BGQsim(Simulator):
         #print "enter run_job_updates, jobspec=", jobspec
 
         start = self.get_current_time_sec()
+        if newattr.has_key('changed_runtime'):
+		# Job is already present
+		temp_job_spec = self.started_job_dict[str(jobspec['jobid'])]
+		orig_end_time = temp_job_spec['end_time']
+		temp_end_time = temp_job_spec['start_time'] + newattr['changed_runtime']
+
+		if temp_end_time <= start:
+			self.insert_time_stamp(start, "E", {'jobid':jobspec['jobid']})
+			temp_job_spec['end_time'] = start
+			self.delivered_node_hour2 -= (orig_end_time-start) * temp_job_spec['partsize'] / 3600.0
+			updates['end_time'] = start
+		else:
+			self.insert_time_stamp(temp_end_time, "E", {'jobid':jobspec['jobid']})
+			temp_job_spec['end_time'] = temp_end_time
+			self.delivered_node_hour2 -= (orig_end_time-temp_end_time) * temp_job_spec['partsize'] / 3600.0
+			updates['end_time'] = temp_end_time
+
+		self.started_job_dict[str(jobspec['jobid'])] = temp_job_spec
+		updates['runtime'] = newattr['changed_runtime']
+		#updates['remain_time'] = changed_runtime
+
+		return updates
+
         updates['start_time'] = start
         updates['starttime'] = start
 
@@ -851,14 +937,19 @@ class BGQsim(Simulator):
         #determine whether the job is going to fail before completion
         location = newattr['location']
         duration = jobspec['remain_time']
+	print "[bqsim]: run_job_updates called for:", jobspec['jobid']
+	print "[bqsim]: run_job_updates remain time seen:", duration
 
-        end = start + duration
+	if newattr.has_key('new_runtime'):
+		end = start + newattr['new_runtime']
+		updates['runtime'] = newattr['new_runtime']
+	else:
+		end = start + duration
+
         updates['end_time'] = end
         self.insert_time_stamp(end, "E", {'jobid':jobspec['jobid']})
 
         updates.update(newattr)
-
-
 
         #self.update_jobdict(str(jobid), 'start_time', start)
         #self.update_jobdict(str(jobid), 'end_time', end)
@@ -1028,6 +1119,7 @@ class BGQsim(Simulator):
 
     def find_job_location0(self, arg_list, end_times):
         best_partition_dict = {}
+        self.dbglog.LogMessage("[bqsim]: find_job_location0 called")
 
         if self.bridge_in_error:
             return {}
@@ -1129,6 +1221,9 @@ class BGQsim(Simulator):
                         yield b
 
     def find_job_location(self, arg_list, end_times):
+        self.dbglog.LogMessage("[bqsim]: find_job_location called")
+        print "[bqsim]: find_job_location called"
+
         best_partition_dict = {}
         minimum_makespan = 100000
 
@@ -1179,6 +1274,8 @@ class BGQsim(Simulator):
                             yield b
 
         def permute_first_N(inputData, window_size):
+            self.dbglog.LogMessage("[bqsim]: permute_first_N called")
+
             if window_size == 1:
                 yield inputData
             else:
@@ -1784,6 +1881,8 @@ class BGQsim(Simulator):
         '''try to run mate job, start all the jobs that can run. If the started
         jobs include the given mate job, return True else return False.  _jobid : int
         '''
+        self.dbglog.LogMessage("[bqsim]: try_to_run_mate_job called")
+
         #if the job is not yielding, do not continue; no other job is possibly to be scheduled
         if _jobid not in self.yielding_job_list:
             return False

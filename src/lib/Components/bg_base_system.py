@@ -959,6 +959,7 @@ class BGBaseSystem (Component):
 
     def find_job_location(self, arg_list, end_times):
         best_partition_dict = {}
+        print "[bgbasesystem]: find_job_location called"
 
         self._partitions_lock.acquire()
         try:

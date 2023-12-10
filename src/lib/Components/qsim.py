@@ -1199,6 +1199,7 @@ class Qsimulator(Simulator):
             return {jobid: [best_partition.name]}
 
     def find_job_location(self, arg_list, end_times):
+        self.dbglog.LogMessage("[libqsim]: find_job_location called")
 
         best_partition_dict = {}
 

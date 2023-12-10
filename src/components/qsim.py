@@ -126,7 +126,7 @@ def integrated_main(options):
     else:
         while not evsim.is_finished():
             evsim.event_driver()
-            os.system('clear')
+            #os.system('clear')
             if opts.bgjob:
                 bqsim.print_screen()
                 pass
