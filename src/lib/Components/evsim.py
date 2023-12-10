@@ -262,6 +262,8 @@ class EventSimulator(Component):
             evspec['datetime'] = sec_to_date(float(jobspec.get('submittime')))
             evspec['jobid'] = jobspec.get('jobid')
             evspec['location'] = []
+            evspec['sampled_grp'] = jobspec.get('sampled_grp')
+            print "[evsim] add_init_events sampled grp:", evspec['sampled_grp']
             self.add_event(evspec)
 
     add_init_events = exposed(add_init_events)

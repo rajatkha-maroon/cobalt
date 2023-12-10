@@ -544,7 +544,7 @@ class Job (StateMachine):
         "is_runnable", "is_active",
         "has_completed", "sm_state", "score", "attrs", "has_resources", 
         "exit_status", "dep_frac", "walltime_p", "user_list", "runid",
-        "geometry", 'est_start_time',
+        "geometry", 'est_start_time', 'sampled_grp'
     ]
 
     _states = get_job_sm_states() + StateMachine._states
@@ -570,6 +570,10 @@ class Job (StateMachine):
         StateMachine.__init__(self, spec, seas = seas)
 
         logger.info(str(spec))
+
+        self.sampled_grp = spec.get("sampled_grp")
+        print "[cqm] instantiated"
+        print "[cqm] sampled grp is:", self.sampled_grp
 
         self.jobid = spec.get("jobid")
         self.umask = spec.get("umask")
@@ -3563,6 +3567,7 @@ class QueueDict(DataDict):
         return results
 
     def get_jobs(self, specs, callback=None, cargs={}):
+        print "[cqm]: get_jobs called"
         results = []
         for q in self.itervalues():
             results += q.jobs.q_get(specs, callback, cargs)
@@ -4024,6 +4029,8 @@ class QueueManager(Component):
         already in the system component.
 
         """
+        print "[cqm]: run_jobs called"
+
         if user_name:
             logger.info("%s using cqadm to start %s on %s", user_name, specs, nodelist)
 

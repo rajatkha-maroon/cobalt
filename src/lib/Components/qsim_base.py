@@ -81,6 +81,7 @@ def parseline(line):
 
     temp = {}
     splits = line.split(';')
+    total_len = len(splits)
 
     temp['jobid'] = splits[1]
     temp['EventType'] = 'Q'
@@ -117,6 +118,9 @@ def parseline(line):
 
     temp['user'] = splits[9]
     temp['account'] = splits[10]
+
+    temp['sampled_grp'] = splits[total_len - 1]
+    print "[qsim_base]: sampled_grp is:", temp['sampled_grp']
 
     return temp
 
