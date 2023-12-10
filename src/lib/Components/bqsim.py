@@ -35,6 +35,8 @@ REMOTE_QUEUE_MANAGER = "cluster-queue-manager"
 
 WALLTIME_AWARE_CONS = False
 
+IO_RATIO = 50
+
 MACHINE_ID = 0
 MACHINE_NAME = "Mira"
 DEFAULT_MAX_HOLDING_SYS_UTIL = 0.6
@@ -747,7 +749,7 @@ class BGQsim(Simulator):
 		for key in self.raw_jobs:
 			_temp_grp = int(self.raw_jobs[key].get('sampled_grp'))
 			if int(self.raw_jobs[key].get('jobid')) != temp_jobid and temp_grp == _temp_grp:
-				# Check if the job is still in the queue
+				# Check if the job is still in the running queue
 				_temp_jobid = self.get_live_job_by_id(self.raw_jobs[key].get('jobid'))
 				print "[bqsim]: getjobid returned:", _temp_jobid
 				if _temp_jobid != None:
@@ -762,7 +764,10 @@ class BGQsim(Simulator):
 					if _temp_jobid != None:
 						temp_jobspec = _temp_jobid.to_rx()
 
-						newattr = {'changed_runtime': float(self.raw_jobs[key].get('runtime')) / float(temp_cnt)}
+						io_time_ori = float(self.raw_jobs[key].get('runtime')) * float(IO_RATIO / 100)
+						io_time_now = io_time_ori / float(temp_cnt)
+						compute_time = float(self.raw_jobs[key].get('runtime')) - io_time_ori;
+						newattr = {'changed_runtime': io_time_now + compute_time}
 						newattr = self.run_job_updates(temp_jobspec, newattr)
 						_temp_jobid.update(newattr)
 
@@ -772,8 +777,11 @@ class BGQsim(Simulator):
 			#this_jobspec['remain_time'] = orig_runtime / float(temp_cnt)
 
 			print "[bqsim]: changing runtime jobid", temp_jobid
-			this_jobspec.update({'remain_time': float(this_jobspec['remain_time']) / float(temp_cnt)})
-			this_jobspec['remain_time'] = float(this_jobspec['remain_time']) / float(temp_cnt)
+			io_time_ori = float(this_jobspec['remain_time']) * float(IO_RATIO / 100)
+			io_time_now = io_time_ori / float(temp_cnt)
+			compute_time = float(this_jobspec['remain_time']) - io_time_ori
+			this_jobspec.update({'remain_time': io_time_now + compute_time})
+			this_jobspec['remain_time'] = io_time_now + compute_time
 			new_runtime = this_jobspec['remain_time']
 
 		action = "start"
@@ -912,6 +920,13 @@ class BGQsim(Simulator):
 		orig_end_time = temp_job_spec['end_time']
 		temp_end_time = temp_job_spec['start_time'] + newattr['changed_runtime']
 
+
+		self.insert_time_stamp(temp_end_time, "E", {'jobid':jobspec['jobid']})
+                temp_job_spec['end_time'] = temp_end_time
+                self.delivered_node_hour2 -= (orig_end_time-temp_end_time) * temp_job_spec['partsize'] / 3600.0
+                updates['end_time'] = temp_end_time
+
+		'''
 		if temp_end_time <= start:
 			self.insert_time_stamp(start, "E", {'jobid':jobspec['jobid']})
 			temp_job_spec['end_time'] = start
@@ -922,6 +937,7 @@ class BGQsim(Simulator):
 			temp_job_spec['end_time'] = temp_end_time
 			self.delivered_node_hour2 -= (orig_end_time-temp_end_time) * temp_job_spec['partsize'] / 3600.0
 			updates['end_time'] = temp_end_time
+		'''
 
 		self.started_job_dict[str(jobspec['jobid'])] = temp_job_spec
 		updates['runtime'] = newattr['changed_runtime']
