@@ -158,6 +158,31 @@ class EventSimulator(Component):
     def events_length(self):
         return len(self.event_list)
 
+    def update_event(self, ev_spec):
+	time_sec = ev_spec.get('unixtime')
+	if time_sec == None:
+            print "insert time stamp error: no unix time provided"
+            return -1
+
+	if not ev_spec.has_key('jobid'):
+            ev_spec['jobid'] = 0
+        if not ev_spec.has_key('location'):
+            ev_spec['location'] = []
+
+	this_jobid = ev_spec['jobid']
+	this_event = ev_spec['type']
+
+	pos = 0
+	while pos < self.events_length():
+		if this_jobid == self.event_list[pos].get('jobid') and this_event == self.event_list[pos].get('event'):
+			del self.event_list[pos]
+			break
+
+		pos = pos + 1
+
+	self.add_event(ev_spec)
+    update_event = exposed(update_event)
+
     def add_event(self, ev_spec):
         '''insert time stamps in the same order'''
 

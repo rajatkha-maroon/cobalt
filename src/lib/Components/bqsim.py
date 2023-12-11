@@ -35,7 +35,7 @@ REMOTE_QUEUE_MANAGER = "cluster-queue-manager"
 
 WALLTIME_AWARE_CONS = False
 
-IO_RATIO = 50
+IO_RATIO = 1
 
 MACHINE_ID = 0
 MACHINE_NAME = "Mira"
@@ -286,6 +286,21 @@ class BGQsim(Simulator):
 
     def get_current_time_date(self):
         return self.event_manager.get_current_date_time()
+
+    def update_time_stamp(self, timestamp, type, info):
+	if type not in SET_event:
+            print "invalid event type,", type
+            return
+
+	evspec = {}
+        evspec['jobid'] = info.get('jobid', 0)
+        evspec['type'] = type
+        evspec['datetime'] = sec_to_date(timestamp)
+        evspec['unixtime'] = timestamp
+        evspec['machine'] = MACHINE_ID
+        evspec['location'] = info.get('location', [])
+
+	self.event_manager.update_event(evspec)
 
     def insert_time_stamp(self, timestamp, type, info):
         '''insert time stamps in the same order'''
@@ -907,24 +922,23 @@ class BGQsim(Simulator):
 		orig_end_time = temp_job_spec['end_time']
 		temp_end_time = temp_job_spec['start_time'] + newattr['changed_runtime']
 
-
+		'''
 		self.insert_time_stamp(temp_end_time, "E", {'jobid':jobspec['jobid']})
                 temp_job_spec['end_time'] = temp_end_time
                 self.delivered_node_hour2 -= (orig_end_time-temp_end_time) * temp_job_spec['partsize'] / 3600.0
                 updates['end_time'] = temp_end_time
-
 		'''
+
 		if temp_end_time <= start:
-			self.insert_time_stamp(start, "E", {'jobid':jobspec['jobid']})
+			self.update_time_stamp(start, "E", {'jobid':jobspec['jobid']})
 			temp_job_spec['end_time'] = start
 			self.delivered_node_hour2 -= (orig_end_time-start) * temp_job_spec['partsize'] / 3600.0
 			updates['end_time'] = start
 		else:
-			self.insert_time_stamp(temp_end_time, "E", {'jobid':jobspec['jobid']})
+			self.update_time_stamp(temp_end_time, "E", {'jobid':jobspec['jobid']})
 			temp_job_spec['end_time'] = temp_end_time
 			self.delivered_node_hour2 -= (orig_end_time-temp_end_time) * temp_job_spec['partsize'] / 3600.0
 			updates['end_time'] = temp_end_time
-		'''
 
 		self.started_job_dict[str(jobspec['jobid'])] = temp_job_spec
 		updates['runtime'] = newattr['changed_runtime']
@@ -949,6 +963,8 @@ class BGQsim(Simulator):
 	if newattr.has_key('new_runtime'):
 		end = start + newattr['new_runtime']
 		updates['runtime'] = newattr['new_runtime']
+		# We don't want a new attribute in the job spec after returning
+		newattr.pop('new_runtime')
 	else:
 		end = start + duration
 
