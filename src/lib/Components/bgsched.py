@@ -588,8 +588,6 @@ class Job (ForeignData):
         self.attrs = spec.pop("attrs", {})
         self.geometry = spec.pop("geometry", None)
         self.sampled_grp = spec.pop('sampled_grp', None)
-        print "[bgsched]: init job id", self.jobid
-        print "[bgsched]: init sampled grp", self.sampled_grp
 
         logger.info("Job %s/%s: Found job" % (self.jobid, self.user))
 
@@ -1028,15 +1026,11 @@ class BGSched (Component):
         in cqm.
 
         '''
-        print "[bgsched]: schedule_jobs called"
 
         if not self.active:
             return
 
         self.sync_data()
-
-        for j in self.jobs:
-		print "[bgsched]: self jobs jobid after sync:", j
 
         # if we're missing information, don't bother trying to schedule jobs
         if not (self.queues.__oserror__.status and
@@ -1116,7 +1110,6 @@ class BGSched (Component):
                 if queue.name in eq_class['queues']])
             active_jobs = []
             for j in temp_jobs:
-                print "[bgsched]: temp_jobs sampledgrp:", j.sampled_grp
                 if not self.started_jobs.has_key(j.jobid):
                     active_jobs.append(j)
 
@@ -1174,7 +1167,6 @@ class BGSched (Component):
             # now smoosh lots of data together to be passed to the allocator in the system component
             job_location_args = []
             for job in active_jobs:
-                print "[bgsched]: active job:", job.jobid
                 forbidden_locations = set()
                 pt_blocking_locations = set()
 
@@ -1197,7 +1189,6 @@ class BGSched (Component):
                              'geometry':job.geometry,
                              'sampled_grp': job.sampled_grp,
                            }
-                print "[bgsched] job_info sampled_grp:", job.sampled_grp
                 for eq_class in equiv:
                     if job.queue in eq_class['queues']:
                         job_info['queue_equivalence'] = eq_class['queues']
@@ -1211,10 +1202,7 @@ class BGSched (Component):
                 self.logger.debug("%s", traceback.format_exc())
                 best_partition_dict = {}
 
-            print "[bgsched]: best_partition_dict:", best_partition_dict
             for jobid in best_partition_dict:
-                print "[bgsched]: starting job:", job.jobid
-                print "[bgsched]: job in group:", job.sampled_grp
                 job = self.jobs[int(jobid)]
                 self.logger.debug("starting job:", job.jobid)
                 self._start_job(job, best_partition_dict[jobid])

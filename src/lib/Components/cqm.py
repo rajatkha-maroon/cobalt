@@ -3567,7 +3567,6 @@ class QueueDict(DataDict):
         return results
 
     def get_jobs(self, specs, callback=None, cargs={}):
-        print "[cqm]: get_jobs called"
         results = []
         for q in self.itervalues():
             results += q.jobs.q_get(specs, callback, cargs)

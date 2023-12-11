@@ -214,8 +214,6 @@ class BGQsim(Simulator):
 
 ####----log and other
         #initialize PBS-style logger
-        print("[bqsim] Output file:", self.output_log)
-
         self.pbslog = PBSlogger(self.output_log)
 
         #initialize debug logger
@@ -523,7 +521,6 @@ class BGQsim(Simulator):
             spec['start_time'] = tmp.get('start', 0)  #used for reservation jobs only
 
             spec['sampled_grp'] = tmp.get('sampled_grp')
-            print "[bqsim] init_queues sampledgrp:", spec['sampled_grp']
 
             #add the job spec to the spec list
             specs.append(spec)
@@ -724,10 +721,6 @@ class BGQsim(Simulator):
         '''run a queued job, by updating the job state, start_time and
         end_time, invoked by bgsched'''
         #print "run job ", specs, " on nodes", nodelist
-        print "[bqsim]: run_jobs called"
-        for key in self.raw_jobs:
-		print "[bqsim] jobid:", self.raw_jobs[key].get('jobid')
-		print "[bqsim] sgrp:", self.raw_jobs[key].get('sampled_grp')
 
         if specs == None:
             return 0
@@ -737,24 +730,20 @@ class BGQsim(Simulator):
 	new_runtime = 0.0
 	for spec in specs:
 		temp_jobid = spec.get('jobid')
-		print "[bqsim]: now to be run job:", temp_jobid
 
 		temp_grp = -1
 		for key in self.raw_jobs:
 			if int(self.raw_jobs[key].get('jobid')) == temp_jobid:
 				temp_grp = int(self.raw_jobs[key].get('sampled_grp'))
 				orig_runtime = float(self.raw_jobs[key].get('runtime'))
-		print "[bqsim]: tempgrp:", temp_grp
 		temp_cnt = 1
 		for key in self.raw_jobs:
 			_temp_grp = int(self.raw_jobs[key].get('sampled_grp'))
 			if int(self.raw_jobs[key].get('jobid')) != temp_jobid and temp_grp == _temp_grp:
 				# Check if the job is still in the running queue
 				_temp_jobid = self.get_live_job_by_id(self.raw_jobs[key].get('jobid'))
-				print "[bqsim]: getjobid returned:", _temp_jobid
 				if _temp_jobid != None:
 					temp_cnt += 1
-		print "[bqsim]: totalcnt:", temp_cnt
 
 		if temp_cnt != 1:
 			for key in self.raw_jobs:
@@ -764,7 +753,7 @@ class BGQsim(Simulator):
 					if _temp_jobid != None:
 						temp_jobspec = _temp_jobid.to_rx()
 
-						io_time_ori = float(self.raw_jobs[key].get('runtime')) * float(IO_RATIO / 100)
+						io_time_ori = float(self.raw_jobs[key].get('runtime')) * float(float(IO_RATIO) / 100)
 						io_time_now = io_time_ori / float(temp_cnt)
 						compute_time = float(self.raw_jobs[key].get('runtime')) - io_time_ori;
 						newattr = {'changed_runtime': io_time_now + compute_time}
@@ -773,11 +762,9 @@ class BGQsim(Simulator):
 
 			this_jobid = self.get_live_job_by_id(temp_jobid)
 			this_jobspec = this_jobid.to_rx()
-			print "[bqsim]: remaintime:", this_jobspec['remain_time']
 			#this_jobspec['remain_time'] = orig_runtime / float(temp_cnt)
 
-			print "[bqsim]: changing runtime jobid", temp_jobid
-			io_time_ori = float(this_jobspec['remain_time']) * float(IO_RATIO / 100)
+			io_time_ori = float(this_jobspec['remain_time']) * float(float(IO_RATIO) / 100)
 			io_time_now = io_time_ori / float(temp_cnt)
 			compute_time = float(this_jobspec['remain_time']) - io_time_ori
 			this_jobspec.update({'remain_time': io_time_now + compute_time})
@@ -958,8 +945,6 @@ class BGQsim(Simulator):
         #determine whether the job is going to fail before completion
         location = newattr['location']
         duration = jobspec['remain_time']
-	print "[bqsim]: run_job_updates called for:", jobspec['jobid']
-	print "[bqsim]: run_job_updates remain time seen:", duration
 
 	if newattr.has_key('new_runtime'):
 		end = start + newattr['new_runtime']
@@ -1140,7 +1125,6 @@ class BGQsim(Simulator):
 
     def find_job_location0(self, arg_list, end_times):
         best_partition_dict = {}
-        self.dbglog.LogMessage("[bqsim]: find_job_location0 called")
 
         if self.bridge_in_error:
             return {}
@@ -1243,7 +1227,6 @@ class BGQsim(Simulator):
 
     def find_job_location(self, arg_list, end_times):
         self.dbglog.LogMessage("[bqsim]: find_job_location called")
-        print "[bqsim]: find_job_location called"
 
         best_partition_dict = {}
         minimum_makespan = 100000
@@ -2348,7 +2331,7 @@ class BGQsim(Simulator):
         if self.sleep_interval:
             time.sleep(self.sleep_interval)
 
-        print "waiting jobs:", [(job.jobid, job.nodes) for job in self.queuing_jobs]
+        #print "waiting jobs:", [(job.jobid, job.nodes) for job in self.queuing_jobs]
 
 #        wait_jobs = [job for job in self.queues.get_jobs([{'is_runnable':True}])]
 #
